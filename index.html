@@ -3,7 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <title>Workout Timer</title>
-    
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#111111">
 
@@ -22,8 +21,8 @@ html, body {
 }
 
 #exercise-container {
-  height: 8rem;
-  min-height: 60px;
+  height: 10rem;
+  min-height: 70px;
   max-width: 800px;
   width: 90%;
   display: flex;
@@ -38,7 +37,7 @@ html, body {
 
 #timer {
   font-weight: bold;
-  margin: 20px 0;
+  margin: 25px 0;
 }
 
 .progress-container {
@@ -48,9 +47,9 @@ html, body {
   transform: translateX(-50%);
   width: 90%;
   max-width: 600px;
-  height: 20px;
+  height: 28px;
   background: #333;
-  border-radius: 10px;
+  border-radius: 14px;
   overflow: hidden;
 }
 
@@ -64,16 +63,23 @@ html, body {
 .button-container {
   display: flex;
   justify-content: center;
-  gap: 10px;
-  margin-top: 20px;
+  gap: 15px;
+  margin-top: 25px;
 }
 
 button {
-  font-size: 1rem;
-  padding: 10px 20px;
+  font-size: 1.5rem;
+  padding: 15px 25px;
   border: none;
   cursor: pointer;
   font-weight: bold;
+  border-radius: 8px;
+  background: #222;
+  color: #fff;
+}
+
+button:active {
+  background: #333;
 }
 
 canvas {
@@ -83,22 +89,33 @@ canvas {
   pointer-events: none;
 }
 
+/* Mobile-specific adjustments */
 @media (max-width: 600px) {
-  #exercise { font-size: 8vw; }
-  #timer { font-size: 10vw; }
+  #exercise { font-size: 10vw; }
+  #timer { font-size: 12vw; }
+  .button-container button {
+    font-size: 1.5rem;
+    padding: 15px 25px;
+  }
+  .progress-container {
+    height: 28px;
+    max-width: 95%;
+  }
 }
+
 @media (min-width: 601px) {
-  #exercise { font-size: 3.5rem; }
-  #timer { font-size: 6rem; }
+  #exercise { font-size: 4rem; }
+  #timer { font-size: 7rem; }
+  .button-container button {
+    font-size: 1.3rem;
+    padding: 12px 25px;
+  }
+  .progress-container {
+    height: 24px;
+  }
 }
 </style>
 </head>
-    
-<script>
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js");
-}
-</script>
 
 <body>
 
@@ -121,6 +138,11 @@ if ("serviceWorker" in navigator) {
 </div>
 
 <script>
+// ===================== SERVICE WORKER =====================
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js");
+}
+
 // ===================== CONFIG =====================
 const exercises = [
   "Jumping Jacks","Wall Sit","Push Ups","Sit Ups","Step Ups",
@@ -131,7 +153,6 @@ const exercises = [
 
 const WORK_TIME = 26;
 const TRANSITION_TIME = 8;
-const halfwayMessages = ["Halfway there", "Keep going", "Stay strong"];
 
 // ===================== STATE =====================
 let currentExercise = 0;
@@ -140,7 +161,6 @@ let phase = "ready"; // ready | work | transition | complete
 let paused = true;
 let started = false;
 let interval = null;
-let halfwayMessageIndex = 0;
 let confettiPlayed = false;
 
 // ===================== AUDIO =====================
@@ -232,7 +252,7 @@ function drawConfetti() {
   requestAnimationFrame(drawConfetti);
 }
 
-// ===================== FLOW =====================
+// ===================== TIMER FLOW =====================
 function updateTimer() {
   timerEl.textContent = timeLeft.toString().padStart(2, "0");
 }
@@ -276,6 +296,7 @@ function finishWorkout() {
   startConfetti();
 }
 
+// ===================== TICK =====================
 function tick() {
   if (!started || paused) return;
 
@@ -310,14 +331,33 @@ function tick() {
   updateTimer();
 }
 
+// ===================== WAKE LOCK =====================
+let wakeLock = null;
+
+async function requestWakeLock() {
+  try {
+    if ('wakeLock' in navigator) {
+      wakeLock = await navigator.wakeLock.request('screen');
+      wakeLock.addEventListener('release', () => console.log('Wake Lock released'));
+    }
+  } catch (err) {
+    console.error(`${err.name}, ${err.message}`);
+  }
+}
+
+async function releaseWakeLock() {
+  if (wakeLock !== null) {
+    await wakeLock.release();
+    wakeLock = null;
+  }
+}
+
 // ===================== CONTROLS =====================
 pauseBtn.onclick = async () => {
   enableAudio();
 
   if (phase === "complete") {
-    // Full restart
     currentExercise = 0;
-    halfwayMessageIndex = 0;
     confettiPlayed = false;
     progressBar.style.width = "0%";
     pauseBtn.textContent = "Pause ❚❚";
@@ -325,6 +365,7 @@ pauseBtn.onclick = async () => {
     started = true;
     startGetReady();
     interval = setInterval(tick, 1000);
+    await requestWakeLock();
     return;
   }
 
@@ -335,11 +376,18 @@ pauseBtn.onclick = async () => {
     paused = false;
     startGetReady();
     interval = setInterval(tick, 1000);
+    await requestWakeLock();
     return;
   }
 
   paused = !paused;
   pauseBtn.textContent = paused ? "Play ►" : "Pause ❚❚";
+
+  if (paused) {
+    await releaseWakeLock();
+  } else {
+    await requestWakeLock();
+  }
 };
 
 document.getElementById("skip").onclick = () => {
