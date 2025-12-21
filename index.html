@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Workout Timer</title>
+    
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#111111">
+
+<style>
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: #111;
+  color: #fff;
+  font-family: Arial, sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 20px;
+}
+
+#exercise-container {
+  height: 8rem;
+  min-height: 60px;
+  max-width: 800px;
+  width: 90%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+#exercise {
+  word-wrap: break-word;
+}
+
+#timer {
+  font-weight: bold;
+  margin: 20px 0;
+}
+
+.progress-container {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 90%;
+  max-width: 600px;
+  height: 20px;
+  background: #333;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  width: 0%;
+  background: #4caf50;
+  transition: width 0.4s ease;
+}
+
+.button-container {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+button {
+  font-size: 1rem;
+  padding: 10px 20px;
+  border: none;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+
+@media (max-width: 600px) {
+  #exercise { font-size: 8vw; }
+  #timer { font-size: 10vw; }
+}
+@media (min-width: 601px) {
+  #exercise { font-size: 3.5rem; }
+  #timer { font-size: 6rem; }
+}
+</style>
+</head>
+    
+<script>
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js");
+}
+</script>
+
+<body>
+
+<canvas id="confetti"></canvas>
+
+<div id="exercise-container">
+  <div id="exercise">Press Play</div>
+</div>
+
+<div id="timer">--</div>
+
+<div class="button-container">
+  <button id="replay">Replay</button>
+  <button id="pause">Play ►</button>
+  <button id="skip">Skip</button>
+</div>
+
+<div class="progress-container">
+  <div class="progress-bar" id="progress-bar"></div>
+</div>
+
+<script>
+// ===================== CONFIG =====================
+const exercises = [
+  "Jumping Jacks","Wall Sit","Push Ups","Sit Ups","Step Ups",
+  "Squat","Triceps Dip","Plank","Burpees","Wall Sit",
+  "Downward Dog Cobra","Bicycle Kicks","Side-to-Side Shuffle",
+  "Lunge","Push Up & Rotation","Crunch"
+];
+
+const WORK_TIME = 26;
+const TRANSITION_TIME = 8;
+const halfwayMessages = ["Halfway there", "Keep going", "Stay strong"];
+
+// ===================== STATE =====================
+let currentExercise = 0;
+let timeLeft = TRANSITION_TIME;
+let phase = "ready"; // ready | work | transition | complete
+let paused = true;
+let started = false;
+let interval = null;
+let halfwayMessageIndex = 0;
+let confettiPlayed = false;
+
+// ===================== AUDIO =====================
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+let calmVoice = null;
+let voicesReady = false;
+
+function enableAudio() {
+  if (audioCtx.state === "suspended") audioCtx.resume();
+}
+
+function beep(freq = 500, duration = 180) {
+  enableAudio();
+  const osc = audioCtx.createOscillator();
+  osc.frequency.value = freq;
+  osc.connect(audioCtx.destination);
+  osc.start();
+  osc.stop(audioCtx.currentTime + duration / 1000);
+}
+
+// ===================== VOICE =====================
+function loadMaleVoice() {
+  return new Promise(resolve => {
+    function tryLoad() {
+      const voices = speechSynthesis.getVoices();
+      if (!voices.length) return false;
+      calmVoice = voices.find(v => v.lang.startsWith("en")) || voices[0];
+      voicesReady = true;
+      resolve();
+      return true;
+    }
+    if (!tryLoad()) speechSynthesis.onvoiceschanged = tryLoad;
+  });
+}
+
+function speak(text) {
+  if (!voicesReady || !calmVoice) return;
+  enableAudio();
+  speechSynthesis.cancel();
+  const msg = new SpeechSynthesisUtterance(text);
+  msg.voice = calmVoice;
+  msg.rate = 0.85;
+  msg.pitch = 0.8;
+  speechSynthesis.speak(msg);
+}
+
+// ===================== UI =====================
+const exerciseEl = document.getElementById("exercise");
+const timerEl = document.getElementById("timer");
+const pauseBtn = document.getElementById("pause");
+const progressBar = document.getElementById("progress-bar");
+
+// ===================== CONFETTI =====================
+let confettiCanvas, confettiCtx, confettiPieces = [], confettiActive = false;
+
+function startConfetti() {
+  if (confettiPlayed) return;
+  confettiPlayed = true;
+
+  confettiCanvas = document.getElementById("confetti");
+  confettiCtx = confettiCanvas.getContext("2d");
+  confettiCanvas.width = window.innerWidth;
+  confettiCanvas.height = window.innerHeight;
+
+  confettiPieces = Array.from({ length: 150 }, () => ({
+    x: Math.random() * confettiCanvas.width,
+    y: Math.random() * -confettiCanvas.height,
+    size: Math.random() * 6 + 4,
+    speed: Math.random() * 3 + 2,
+    color: `hsl(${Math.random() * 360},100%,50%)`
+  }));
+
+  confettiActive = true;
+  setTimeout(() => confettiActive = false, 5000);
+  requestAnimationFrame(drawConfetti);
+}
+
+function drawConfetti() {
+  if (!confettiActive) return;
+  confettiCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+
+  confettiPieces.forEach(p => {
+    p.y += p.speed;
+    if (p.y > confettiCanvas.height) p.y = -10;
+    confettiCtx.fillStyle = p.color;
+    confettiCtx.fillRect(p.x, p.y, p.size, p.size);
+  });
+
+  requestAnimationFrame(drawConfetti);
+}
+
+// ===================== FLOW =====================
+function updateTimer() {
+  timerEl.textContent = timeLeft.toString().padStart(2, "0");
+}
+
+function updateProgressBar() {
+  progressBar.style.width = (currentExercise / exercises.length) * 100 + "%";
+}
+
+function startGetReady() {
+  phase = "ready";
+  timeLeft = TRANSITION_TIME;
+  exerciseEl.textContent = "Get Ready";
+  speak("Get ready");
+  updateTimer();
+}
+
+function startExercise() {
+  phase = "work";
+  timeLeft = WORK_TIME;
+  exerciseEl.textContent = exercises[currentExercise];
+  speak(exercises[currentExercise]);
+  updateTimer();
+}
+
+function startTransition() {
+  phase = "transition";
+  timeLeft = TRANSITION_TIME;
+  exerciseEl.textContent = `Next Up: ${exercises[currentExercise]}`;
+  speak(`Next up: ${exercises[currentExercise]}`);
+  updateTimer();
+}
+
+function finishWorkout() {
+  phase = "complete";
+  exerciseEl.textContent = "Workout Complete!";
+  timerEl.textContent = "✔";
+  progressBar.style.width = "100%";
+  clearInterval(interval);
+  pauseBtn.textContent = "Restart ↺";
+  speak("Workout complete. Great job!");
+  startConfetti();
+}
+
+function tick() {
+  if (!started || paused) return;
+
+  if ([3,2,1].includes(timeLeft)) beep();
+
+  if (timeLeft === 0) {
+    if (phase === "ready") {
+      startExercise();
+      return;
+    }
+
+    if (phase === "work") {
+      currentExercise++;
+      updateProgressBar();
+
+      if (currentExercise >= exercises.length) {
+        finishWorkout();
+        return;
+      }
+
+      startTransition();
+      return;
+    }
+
+    if (phase === "transition") {
+      startExercise();
+      return;
+    }
+  }
+
+  timeLeft--;
+  updateTimer();
+}
+
+// ===================== CONTROLS =====================
+pauseBtn.onclick = async () => {
+  enableAudio();
+
+  if (phase === "complete") {
+    // Full restart
+    currentExercise = 0;
+    halfwayMessageIndex = 0;
+    confettiPlayed = false;
+    progressBar.style.width = "0%";
+    pauseBtn.textContent = "Pause ❚❚";
+    paused = false;
+    started = true;
+    startGetReady();
+    interval = setInterval(tick, 1000);
+    return;
+  }
+
+  if (!started) {
+    pauseBtn.textContent = "Pause ❚❚";
+    await loadMaleVoice();
+    started = true;
+    paused = false;
+    startGetReady();
+    interval = setInterval(tick, 1000);
+    return;
+  }
+
+  paused = !paused;
+  pauseBtn.textContent = paused ? "Play ►" : "Pause ❚❚";
+};
+
+document.getElementById("skip").onclick = () => {
+  if (!started || phase === "complete") return;
+
+  if (phase === "work") {
+    currentExercise++;
+    updateProgressBar();
+
+    if (currentExercise >= exercises.length) {
+      finishWorkout();
+      return;
+    }
+
+    startTransition();
+  } else {
+    startExercise();
+  }
+};
+
+document.getElementById("replay").onclick = () => {
+  if (!started) return;
+
+  if (phase === "complete") {
+    currentExercise = exercises.length - 1;
+  } else if (phase === "transition") {
+    currentExercise = Math.max(0, currentExercise - 1);
+  }
+
+  phase = "work";
+  timeLeft = WORK_TIME;
+  exerciseEl.textContent = exercises[currentExercise];
+  speak(exercises[currentExercise]);
+  updateTimer();
+};
+</script>
+
+</body>
+</html>
