@@ -1,120 +1,120 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Workout Timer</title>
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#111111">
+  <meta charset="UTF-8">
+  <title>Workout Timer</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#111111">
 
-<style>
-html, body {
-  margin: 0;
-  padding: 0;
-  height: 100%;
-  background: #111;
-  color: #fff;
-  font-family: Arial, sans-serif;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding-top: 20px;
-}
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background: #111;
+      color: #fff;
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding-top: 20px;
+    }
 
-#exercise-container {
-  height: 10rem;
-  min-height: 70px;
-  max-width: 800px;
-  width: 90%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-}
+    #exercise-container {
+      height: 10rem;
+      min-height: 70px;
+      max-width: 800px;
+      width: 90%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
 
-#exercise {
-  word-wrap: break-word;
-}
+    #exercise {
+      word-wrap: break-word;
+    }
 
-#timer {
-  font-weight: bold;
-  margin: 25px 0;
-}
+    #timer {
+      font-weight: bold;
+      margin: 25px 0;
+    }
 
-.progress-container {
-  position: fixed;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 90%;
-  max-width: 600px;
-  height: 28px;
-  background: #333;
-  border-radius: 14px;
-  overflow: hidden;
-}
+    .progress-container {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 90%;
+      max-width: 600px;
+      height: 28px;
+      background: #333;
+      border-radius: 14px;
+      overflow: hidden;
+    }
 
-.progress-bar {
-  height: 100%;
-  width: 0%;
-  background: #4caf50;
-  transition: width 0.4s ease;
-}
+    .progress-bar {
+      height: 100%;
+      width: 0%;
+      background: #4caf50;
+      transition: width 0.4s ease;
+    }
 
-.button-container {
-  display: flex;
-  justify-content: center;
-  gap: 15px;
-  margin-top: 25px;
-}
+    .button-container {
+      display: flex;
+      justify-content: center;
+      gap: 15px;
+      margin-top: 25px;
+    }
 
-button {
-  font-size: 1.5rem;
-  padding: 15px 25px;
-  border: none;
-  cursor: pointer;
-  font-weight: bold;
-  border-radius: 8px;
-  background: #222;
-  color: #fff;
-}
+    button {
+      font-size: 2rem;
+      padding: 15px 25px;
+      border: none;
+      cursor: pointer;
+      font-weight: bold;
+      border-radius: 8px;
+      background: #222;
+      color: #fff;
+    }
 
-button:active {
-  background: #333;
-}
+    button:active {
+      background: #333;
+    }
 
-canvas {
-  position: fixed;
-  top: 0;
-  left: 0;
-  pointer-events: none;
-}
+    canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      pointer-events: none;
+    }
 
-/* Mobile-specific adjustments */
-@media (max-width: 600px) {
-  #exercise { font-size: 10vw; }
-  #timer { font-size: 12vw; }
-  .button-container button {
-    font-size: 1.5rem;
-    padding: 15px 25px;
-  }
-  .progress-container {
-    height: 28px;
-    max-width: 95%;
-  }
-}
+    /* Mobile-specific adjustments */
+    @media (max-width: 600px) {
+      #exercise { font-size: 10vw; }
+      #timer { font-size: 12vw; }
+      .button-container button {
+        font-size: 1.5rem;
+        padding: 15px 25px;
+      }
+      .progress-container {
+        height: 28px;
+        max-width: 95%;
+      }
+    }
 
-@media (min-width: 601px) {
-  #exercise { font-size: 4rem; }
-  #timer { font-size: 7rem; }
-  .button-container button {
-    font-size: 1.3rem;
-    padding: 12px 25px;
-  }
-  .progress-container {
-    height: 24px;
-  }
-}
-</style>
+    @media (min-width: 601px) {
+      #exercise { font-size: 6rem; }
+      #timer { font-size: 8rem; }
+      .button-container button {
+        font-size: 1.5rem;
+        padding: 18px 30px;
+      }
+      .progress-container {
+        height: 24px;
+      }
+    }
+  </style>
 </head>
 
 <body>
@@ -145,10 +145,10 @@ if ("serviceWorker" in navigator) {
 
 // ===================== CONFIG =====================
 const exercises = [
-  "Jumping Jacks","Wall Sit","Push Ups","Sit Ups","Step Ups",
-  "Squat","Triceps Dip","Plank","Burpees","Wall Sit",
-  "Downward Dog Cobra","Bicycle Kicks","Side-to-Side Shuffle",
-  "Lunge","Push Up & Rotation","Crunch"
+  "Jumping Jacks", "Wall Sit", "Push Ups", "Sit Ups", "Step Up",
+  "Squat", "Triceps Dip", "Plank", "Jumping Jacks", "Wall Sit",
+  "Downward Dog Cobra", "Bicycle Kicks", "Side-to-Side Shuffle",
+  "Lunge", "Push Up & Rotation", "Crunch"
 ];
 
 const WORK_TIME = 26;
@@ -234,7 +234,7 @@ function startConfetti() {
   }));
 
   confettiActive = true;
-  setTimeout(() => confettiActive = false, 5000);
+  setTimeout(() => confettiActive = false, 18000);
   requestAnimationFrame(drawConfetti);
 }
 
@@ -296,12 +296,14 @@ function finishWorkout() {
   startConfetti();
 }
 
-// ===================== TICK =====================
+  // ===================== TICK =====================
 function tick() {
   if (!started || paused) return;
 
-  if ([3,2,1].includes(timeLeft)) beep();
+  // Beep when time is 3, 2, or 1 seconds left
+  if ([3, 2, 1].includes(timeLeft)) beep();
 
+  // Ensure beep is given at the final transition after all exercises
   if (timeLeft === 0) {
     if (phase === "ready") {
       startExercise();
@@ -322,6 +324,10 @@ function tick() {
     }
 
     if (phase === "transition") {
+      // Final transition beep when workout finishes
+      if (currentExercise >= exercises.length - 1) {
+        beep();  // Ensure final beep happens here
+      }
       startExercise();
       return;
     }
@@ -427,4 +433,3 @@ document.getElementById("replay").onclick = () => {
 
 </body>
 </html>
-
